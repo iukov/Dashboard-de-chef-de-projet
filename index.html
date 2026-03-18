@@ -1,194 +1,264 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8">
-<title>Dashboard Projets</title>
-
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-<style>
-body {
-  font-family: Arial;
-  background: #0f172a;
-  color: white;
-  padding: 20px;
-}
-
-h1 {
-  margin-bottom: 20px;
-}
-
-.container {
-  max-width: 1200px;
-  margin: auto;
-}
-
-.card {
-  background: #1e293b;
-  padding: 20px;
-  border-radius: 12px;
-  margin-bottom: 20px;
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-th, td {
-  padding: 10px;
-  border-bottom: 1px solid #334155;
-}
-
-th {
-  color: #94a3b8;
-}
-
-.ok { color: #22c55e; }
-.risque { color: #f59e0b; }
-.retard { color: #ef4444; }
-
-.grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
-}
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard Projets</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #0f172a;
+      color: #fff;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+    h1 {
+      margin: 0 0 24px;
+      font-size: 32px;
+    }
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .card {
+      background: #1e293b;
+      border-radius: 16px;
+      padding: 20px;
+    }
+    .card .label {
+      color: #94a3b8;
+      font-size: 14px;
+      margin-bottom: 8px;
+    }
+    .card .value {
+      font-size: 28px;
+      font-weight: bold;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+    .panel {
+      background: #1e293b;
+      border-radius: 16px;
+      padding: 20px;
+    }
+    .panel h2 {
+      margin-top: 0;
+      font-size: 20px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #1e293b;
+      border-radius: 16px;
+      overflow: hidden;
+    }
+    th, td {
+      padding: 12px 14px;
+      border-bottom: 1px solid #334155;
+      text-align: left;
+    }
+    th {
+      color: #94a3b8;
+      font-size: 14px;
+    }
+    .ok { color: #22c55e; font-weight: bold; }
+    .risque { color: #f59e0b; font-weight: bold; }
+    .retard { color: #ef4444; font-weight: bold; }
+    .positive { color: #ef4444; font-weight: bold; }
+    .negative { color: #22c55e; font-weight: bold; }
+    .loading {
+      color: #94a3b8;
+      margin-bottom: 16px;
+    }
+    @media (max-width: 900px) {
+      .cards, .grid { grid-template-columns: 1fr; }
+    }
+  </style>
 </head>
-
 <body>
+  <div class="container">
+    <h1>Dashboard Projets</h1>
 
-<div class="container">
+    <div class="loading" id="loading">Chargement des données...</div>
 
-<h1>📊 Dashboard Projets</h1>
+    <div class="cards">
+      <div class="card">
+        <div class="label">Projets suivis</div>
+        <div class="value" id="kpiTotal">0</div>
+      </div>
+      <div class="card">
+        <div class="label">Marge moyenne</div>
+        <div class="value" id="kpiMarge">0%</div>
+      </div>
+      <div class="card">
+        <div class="label">Écart moyen</div>
+        <div class="value" id="kpiEcart">0%</div>
+      </div>
+      <div class="card">
+        <div class="label">Projets en alerte</div>
+        <div class="value" id="kpiAlertes">0</div>
+      </div>
+    </div>
 
-<div class="grid">
+    <div class="grid">
+      <div class="panel">
+        <h2>Estimation vs temps réel</h2>
+        <canvas id="barChart"></canvas>
+      </div>
+      <div class="panel">
+        <h2>Répartition des statuts</h2>
+        <canvas id="pieChart"></canvas>
+      </div>
+    </div>
 
-<div class="card">
-<canvas id="barChart"></canvas>
-</div>
+    <div class="panel">
+      <h2>Suivi détaillé</h2>
+      <table id="table">
+        <thead>
+          <tr>
+            <th>Projet</th>
+            <th>Estimation</th>
+            <th>Temps réel</th>
+            <th>Écart</th>
+            <th>Marge</th>
+            <th>Deadline</th>
+            <th>Statut</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
 
-<div class="card">
-<canvas id="pieChart"></canvas>
-</div>
+  <script>
+    const WEBHOOK_URL = "https://hook.eu2.make.com/iw04o4auv4sicpvs4hzduj5shja3axkn";
 
-</div>
+    let barChartInstance = null;
+    let pieChartInstance = null;
 
-<div class="card">
-<table id="table">
-<thead>
-<tr>
-<th>Projet</th>
-<th>Estimation</th>
-<th>Temps réel</th>
-<th>Écart</th>
-<th>Marge</th>
-<th>Deadline</th>
-<th>Statut</th>
-</tr>
-</thead>
-<tbody></tbody>
-</table>
-</div>
+    function getStatutClass(statut) {
+      if (statut === "OK") return "ok";
+      if (statut === "Risque") return "risque";
+      if (statut === "Retard") return "retard";
+      return "";
+    }
 
-</div>
+    async function loadDashboard() {
+      try {
+        const response = await fetch(WEBHOOK_URL);
+        const data = await response.json();
 
-<script>
+        const tbody = document.querySelector("#table tbody");
+        tbody.innerHTML = "";
 
-const data = [
-  { projet: "Site Web", estimation: 20, temps: 24, marge: 18, deadline: "20/04/2026", statut: "Risque" },
-  { projet: "Intranet", estimation: 40, temps: 38, marge: 25, deadline: "15/05/2026", statut: "OK" },
-  { projet: "App Mobile", estimation: 60, temps: 72, marge: 12, deadline: "01/06/2026", statut: "Retard" }
-];
+        const projets = data.map(row => {
+          const [projet, estimation, temps, marge, deadline, statut] = row;
+          const estimationNum = Number(estimation);
+          const tempsNum = Number(temps);
+          const margeNum = Number(marge);
+          const ecart = estimationNum ? ((tempsNum - estimationNum) / estimationNum) * 100 : 0;
 
-// TABLE
-const tbody = document.querySelector("#table tbody");
+          return {
+            projet,
+            estimation: estimationNum,
+            temps: tempsNum,
+            marge: margeNum,
+            deadline,
+            statut,
+            ecart
+          };
+        });
 
-data.forEach(p => {
-  const ecart = ((p.temps - p.estimation) / p.estimation * 100).toFixed(1);
+        projets.forEach(p => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${p.projet}</td>
+            <td>${p.estimation}h</td>
+            <td>${p.temps}h</td>
+            <td class="${p.ecart > 0 ? 'positive' : 'negative'}">${p.ecart > 0 ? '+' : ''}${p.ecart.toFixed(1)}%</td>
+            <td>${p.marge}%</td>
+            <td>${p.deadline}</td>
+            <td class="${getStatutClass(p.statut)}">${p.statut}</td>
+          `;
+          tbody.appendChild(tr);
+        });
 
-  let statutClass = "";
-  if(p.statut === "OK") statutClass = "ok";
-  if(p.statut === "Risque") statutClass = "risque";
-  if(p.statut === "Retard") statutClass = "retard";
+        const total = projets.length;
+        const margeMoyenne = total ? projets.reduce((s, p) => s + p.marge, 0) / total : 0;
+        const ecartMoyen = total ? projets.reduce((s, p) => s + p.ecart, 0) / total : 0;
+        const alertes = projets.filter(p => p.statut === "Risque" || p.statut === "Retard").length;
 
-  tbody.innerHTML += `
-    <tr>
-      <td>${p.projet}</td>
-      <td>${p.estimation}h</td>
-      <td>${p.temps}h</td>
-      <td>${ecart}%</td>
-      <td>${p.marge}%</td>
-      <td>${p.deadline}</td>
-      <td class="${statutClass}">${p.statut}</td>
-    </tr>
-  `;
-});
+        document.getElementById("kpiTotal").textContent = total;
+        document.getElementById("kpiMarge").textContent = `${margeMoyenne.toFixed(1)}%`;
+        document.getElementById("kpiEcart").textContent = `${ecartMoyen > 0 ? '+' : ''}${ecartMoyen.toFixed(1)}%`;
+        document.getElementById("kpiAlertes").textContent = alertes;
 
-// BAR CHART
-new Chart(document.getElementById('barChart'), {
-  type: 'bar',
-  data: {
-    labels: data.map(p => p.projet),
-    datasets: [
-      {
-        label: 'Estimation',
-        data: data.map(p => p.estimation)
-      },
-      {
-        label: 'Temps réel',
-        data: data.map(p => p.temps)
+        const barLabels = projets.map(p => p.projet);
+        const estimationData = projets.map(p => p.estimation);
+        const tempsData = projets.map(p => p.temps);
+
+        const statusCount = {
+          OK: projets.filter(p => p.statut === "OK").length,
+          Risque: projets.filter(p => p.statut === "Risque").length,
+          Retard: projets.filter(p => p.statut === "Retard").length
+        };
+
+        if (barChartInstance) barChartInstance.destroy();
+        barChartInstance = new Chart(document.getElementById("barChart"), {
+          type: "bar",
+          data: {
+            labels: barLabels,
+            datasets: [
+              { label: "Estimation", data: estimationData },
+              { label: "Temps réel", data: tempsData }
+            ]
+          },
+          options: {
+            responsive: true,
+            plugins: { legend: { labels: { color: "#fff" } } },
+            scales: {
+              x: { ticks: { color: "#fff" } },
+              y: { ticks: { color: "#fff" } }
+            }
+          }
+        });
+
+        if (pieChartInstance) pieChartInstance.destroy();
+        pieChartInstance = new Chart(document.getElementById("pieChart"), {
+          type: "pie",
+          data: {
+            labels: Object.keys(statusCount),
+            datasets: [{
+              data: Object.values(statusCount),
+              backgroundColor: ["#22c55e", "#f59e0b", "#ef4444"]
+            }]
+          },
+          options: {
+            responsive: true,
+            plugins: { legend: { labels: { color: "#fff" } } }
+          }
+        });
+
+        document.getElementById("loading").textContent = "Données à jour";
+      } catch (error) {
+        console.error(error);
+        document.getElementById("loading").textContent = "Erreur de chargement des données";
       }
-    ]
-  }
-});
+    }
 
-// PIE CHART
-const statusCount = {
-  OK: data.filter(p => p.statut === "OK").length,
-  Risque: data.filter(p => p.statut === "Risque").length,
-  Retard: data.filter(p => p.statut === "Retard").length
-};
-
-new Chart(document.getElementById('pieChart'), {
-  type: 'pie',
-  data: {
-    labels: Object.keys(statusCount),
-    datasets: [{
-      data: Object.values(statusCount)
-    }]
-  }
-});
-
-  fetch("https://hook.eu2.make.com/iw04o4auv4sicpvs4hzduj5shja3axkn")
-  .then(res => res.json())
-  .then(data => {
-
-    const tbody = document.querySelector("#table tbody");
-    tbody.innerHTML = "";
-
-    data.forEach(row => {
-
-      const [projet, estimation, temps, marge, deadline, statut] = row;
-
-      const ecart = ((temps - estimation) / estimation * 100).toFixed(1);
-
-      tbody.innerHTML += `
-        <tr>
-          <td>${projet}</td>
-          <td>${estimation}h</td>
-          <td>${temps}h</td>
-          <td>${ecart}%</td>
-          <td>${marge}%</td>
-          <td>${deadline}</td>
-          <td>${statut}</td>
-        </tr>
-      `;
-    });
-
-  });
-
-</script>
-
+    loadDashboard();
+  </script>
 </body>
 </html>
