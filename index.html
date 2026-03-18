@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Dashboard Projets</title>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+body {
+  font-family: Arial;
+  background: #0f172a;
+  color: white;
+  padding: 20px;
+}
+
+h1 {
+  margin-bottom: 20px;
+}
+
+.container {
+  max-width: 1200px;
+  margin: auto;
+}
+
+.card {
+  background: #1e293b;
+  padding: 20px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th, td {
+  padding: 10px;
+  border-bottom: 1px solid #334155;
+}
+
+th {
+  color: #94a3b8;
+}
+
+.ok { color: #22c55e; }
+.risque { color: #f59e0b; }
+.retard { color: #ef4444; }
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>📊 Dashboard Projets</h1>
+
+<div class="grid">
+
+<div class="card">
+<canvas id="barChart"></canvas>
+</div>
+
+<div class="card">
+<canvas id="pieChart"></canvas>
+</div>
+
+</div>
+
+<div class="card">
+<table id="table">
+<thead>
+<tr>
+<th>Projet</th>
+<th>Estimation</th>
+<th>Temps réel</th>
+<th>Écart</th>
+<th>Marge</th>
+<th>Deadline</th>
+<th>Statut</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
+</div>
+
+</div>
+
+<script>
+
+const data = [
+  { projet: "Site Web", estimation: 20, temps: 24, marge: 18, deadline: "20/04/2026", statut: "Risque" },
+  { projet: "Intranet", estimation: 40, temps: 38, marge: 25, deadline: "15/05/2026", statut: "OK" },
+  { projet: "App Mobile", estimation: 60, temps: 72, marge: 12, deadline: "01/06/2026", statut: "Retard" }
+];
+
+// TABLE
+const tbody = document.querySelector("#table tbody");
+
+data.forEach(p => {
+  const ecart = ((p.temps - p.estimation) / p.estimation * 100).toFixed(1);
+
+  let statutClass = "";
+  if(p.statut === "OK") statutClass = "ok";
+  if(p.statut === "Risque") statutClass = "risque";
+  if(p.statut === "Retard") statutClass = "retard";
+
+  tbody.innerHTML += `
+    <tr>
+      <td>${p.projet}</td>
+      <td>${p.estimation}h</td>
+      <td>${p.temps}h</td>
+      <td>${ecart}%</td>
+      <td>${p.marge}%</td>
+      <td>${p.deadline}</td>
+      <td class="${statutClass}">${p.statut}</td>
+    </tr>
+  `;
+});
+
+// BAR CHART
+new Chart(document.getElementById('barChart'), {
+  type: 'bar',
+  data: {
+    labels: data.map(p => p.projet),
+    datasets: [
+      {
+        label: 'Estimation',
+        data: data.map(p => p.estimation)
+      },
+      {
+        label: 'Temps réel',
+        data: data.map(p => p.temps)
+      }
+    ]
+  }
+});
+
+// PIE CHART
+const statusCount = {
+  OK: data.filter(p => p.statut === "OK").length,
+  Risque: data.filter(p => p.statut === "Risque").length,
+  Retard: data.filter(p => p.statut === "Retard").length
+};
+
+new Chart(document.getElementById('pieChart'), {
+  type: 'pie',
+  data: {
+    labels: Object.keys(statusCount),
+    datasets: [{
+      data: Object.values(statusCount)
+    }]
+  }
+});
+
+</script>
+
+</body>
+</html>
