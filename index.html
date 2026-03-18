@@ -160,6 +160,34 @@ new Chart(document.getElementById('pieChart'), {
   }
 });
 
+  fetch("https://hook.eu2.make.com/iw04o4auv4sicpvs4hzduj5shja3axkn")
+  .then(res => res.json())
+  .then(data => {
+
+    const tbody = document.querySelector("#table tbody");
+    tbody.innerHTML = "";
+
+    data.forEach(row => {
+
+      const [projet, estimation, temps, marge, deadline, statut] = row;
+
+      const ecart = ((temps - estimation) / estimation * 100).toFixed(1);
+
+      tbody.innerHTML += `
+        <tr>
+          <td>${projet}</td>
+          <td>${estimation}h</td>
+          <td>${temps}h</td>
+          <td>${ecart}%</td>
+          <td>${marge}%</td>
+          <td>${deadline}</td>
+          <td>${statut}</td>
+        </tr>
+      `;
+    });
+
+  });
+
 </script>
 
 </body>
