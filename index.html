@@ -145,11 +145,11 @@
     <script>
   const WEBHOOK_URL = "https://hook.eu2.make.com/iw04o4auv4sicpvs4hzduj5shja3axkn";
 
-  let barChartInstance = null;
+   let barChartInstance = null;
   let pieChartInstance = null;
 
   function getStatutClass(statut) {
-    if (statut === "OK") return "ok";
+    if (statut === "OK" || statut === "Terminé") return "ok";
     if (statut === "Risque") return "risque";
     if (statut === "Retard") return "retard";
     return "";
@@ -161,32 +161,21 @@
     const cleaned = String(value)
       .replace(/€/g, "")
       .replace(/\s/g, "")
-      .replace(/,/g, "");
+      .replace(/,/g, "")
+      .replace(/%/g, "");
 
     const num = Number(cleaned);
     return Number.isNaN(num) ? 0 : num;
   }
 
   function normalizeRow(row) {
-    if (Array.isArray(row)) {
-      const [projet, estimation, temps, marge, deadline, statut] = row;
-      return {
-        projet: projet || "Sans nom",
-        estimation: parseNumber(estimation),
-        temps: parseNumber(temps),
-        marge: parseNumber(marge),
-        deadline: deadline || "",
-        statut: statut || "OK"
-      };
-    }
-
     return {
       projet: row.A || "Sans nom",
       estimation: parseNumber(row.B),
       temps: parseNumber(row.C),
-      marge: parseNumber(row.D),
-      deadline: row.E || "",
-      statut: row.F || "OK"
+      marge: parseNumber(row.H),
+      deadline: row.I || "",
+      statut: row.J || "OK"
     };
   }
 
@@ -212,10 +201,7 @@
           ? ((p.temps - p.estimation) / p.estimation) * 100
           : 0;
 
-        return {
-          ...p,
-          ecart
-        };
+        return { ...p, ecart };
       });
 
       const tbody = document.querySelector("#table tbody");
@@ -228,7 +214,7 @@
           <td>${p.estimation}h</td>
           <td>${p.temps}h</td>
           <td>${p.ecart > 0 ? "+" : ""}${p.ecart.toFixed(1)}%</td>
-          <td>${p.marge}%</td>
+          <td>${p.marge.toFixed(2)}%</td>
           <td>${p.deadline}</td>
           <td class="${getStatutClass(p.statut)}">${p.statut}</td>
         `;
@@ -256,7 +242,7 @@
       const tempsData = projets.map(p => p.temps);
 
       const statusCount = {
-        OK: projets.filter(p => p.statut === "OK").length,
+        "OK / Terminé": projets.filter(p => p.statut === "OK" || p.statut === "Terminé").length,
         Risque: projets.filter(p => p.statut === "Risque").length,
         Retard: projets.filter(p => p.statut === "Retard").length
       };
