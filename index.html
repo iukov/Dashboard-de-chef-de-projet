@@ -2,101 +2,317 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Dashboard Projets</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
+    :root {
+      --bg: #fff8ef;
+      --bg-soft: #fff3df;
+      --card: rgba(255, 255, 255, 0.82);
+      --card-strong: #ffffff;
+      --text: #22324a;
+      --muted: #73839c;
+      --line: rgba(34, 50, 74, 0.08);
+      --shadow: 0 16px 40px rgba(231, 166, 76, 0.12);
+
+      --blue: #4f8df7;
+      --yellow: #f7b731;
+      --orange: #ff8a4c;
+      --coral: #ff6b6b;
+      --green: #24c26a;
+      --red: #ef5350;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
     body {
-      font-family: Arial, sans-serif;
-      background: #081735;
-      color: #fff;
-      padding: 20px;
       margin: 0;
+      font-family: Inter, Arial, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, #ffeabf 0%, transparent 28%),
+        radial-gradient(circle at top right, #ffd7b8 0%, transparent 24%),
+        linear-gradient(180deg, #fffaf4 0%, #fff5e8 55%, #fff9f1 100%);
+      min-height: 100vh;
     }
-    h1 {
-      margin: 0 0 24px 0;
-      font-size: 28px;
-    }
+
     .container {
-      max-width: 1280px;
-      margin: auto;
+      max-width: 1320px;
+      margin: 0 auto;
+      padding: 28px;
     }
+
+    .hero {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 24px;
+      margin-bottom: 26px;
+    }
+
+    .hero-left h1 {
+      margin: 0;
+      font-size: 42px;
+      line-height: 1.05;
+      letter-spacing: -0.02em;
+    }
+
+    .hero-left p {
+      margin: 12px 0 0;
+      color: var(--muted);
+      font-size: 16px;
+      max-width: 760px;
+    }
+
+    .hero-badge {
+      background: rgba(255,255,255,0.75);
+      border: 1px solid rgba(255,255,255,0.65);
+      backdrop-filter: blur(14px);
+      border-radius: 18px;
+      padding: 14px 18px;
+      box-shadow: var(--shadow);
+      min-width: 220px;
+    }
+
+    .hero-badge .label {
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 6px;
+    }
+
+    .hero-badge .value {
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    #loading {
+      margin-bottom: 20px;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
     .cards {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
-      gap: 16px;
+      gap: 18px;
       margin-bottom: 24px;
     }
-    .card, .panel {
-      background: #1c2b47;
-      border-radius: 18px;
-      padding: 20px;
+
+    .card {
+      background: var(--card);
+      border: 1px solid rgba(255,255,255,0.7);
+      backdrop-filter: blur(16px);
+      border-radius: 24px;
+      padding: 22px;
+      box-shadow: var(--shadow);
+      position: relative;
+      overflow: hidden;
     }
+
+    .card::after {
+      content: "";
+      position: absolute;
+      width: 110px;
+      height: 110px;
+      right: -20px;
+      top: -20px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, rgba(255,255,255,0.45), rgba(255,255,255,0.06));
+      pointer-events: none;
+    }
+
     .card .label {
-      color: #b7c2d6;
       font-size: 14px;
-      margin-bottom: 10px;
+      color: var(--muted);
+      margin-bottom: 12px;
     }
+
     .card .value {
-      font-size: 24px;
-      font-weight: bold;
+      font-size: 34px;
+      font-weight: 800;
+      line-height: 1;
+      letter-spacing: -0.03em;
     }
+
+    .card.blue .value { color: var(--blue); }
+    .card.orange .value { color: var(--orange); }
+    .card.yellow .value { color: #d99200; }
+    .card.coral .value { color: var(--coral); }
+
     .grid {
       display: grid;
-      grid-template-columns: 2fr 1fr;
+      grid-template-columns: 1.8fr 1fr;
       gap: 20px;
       margin-bottom: 24px;
     }
-    .panel h2 {
-      margin-top: 0;
-      margin-bottom: 18px;
-      font-size: 18px;
+
+    .panel {
+      background: var(--card);
+      border: 1px solid rgba(255,255,255,0.7);
+      backdrop-filter: blur(16px);
+      border-radius: 26px;
+      padding: 22px;
+      box-shadow: var(--shadow);
     }
+
+    .panel h2 {
+      margin: 0 0 18px 0;
+      font-size: 24px;
+      letter-spacing: -0.02em;
+    }
+
+    .panel-subtitle {
+      margin-top: -8px;
+      margin-bottom: 18px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .table-panel {
+      background: var(--card-strong);
+    }
+
     table {
       width: 100%;
       border-collapse: collapse;
     }
+
     th, td {
-      padding: 14px 10px;
-      border-bottom: 1px solid #334766;
+      padding: 16px 12px;
+      border-bottom: 1px solid var(--line);
       text-align: left;
     }
+
     th {
-      color: #aab7cf;
-      font-weight: 600;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 700;
+      position: sticky;
+      top: 0;
+      background: rgba(255,255,255,0.92);
+      backdrop-filter: blur(10px);
     }
-    .ok { color: #19d66b; font-weight: 700; }
-    .risque { color: #f7b731; font-weight: 700; }
-    .retard { color: #ff5c5c; font-weight: 700; }
-    #loading {
-      margin-bottom: 20px;
-      color: #c9d4e7;
+
+    tbody tr:hover {
+      background: rgba(255, 214, 153, 0.12);
     }
-    @media (max-width: 960px) {
-      .cards, .grid {
-        grid-template-columns: 1fr;
-      }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      padding: 7px 12px;
+      font-size: 13px;
+      font-weight: 700;
+      min-width: 84px;
+    }
+
+    .ok {
+      color: #148a4b;
+      background: rgba(36, 194, 106, 0.14);
+    }
+
+    .risque {
+      color: #b27300;
+      background: rgba(247, 183, 49, 0.18);
+    }
+
+    .retard {
+      color: #c93b3b;
+      background: rgba(239, 83, 80, 0.16);
+    }
+
+    .ecart-positive {
+      color: #d9641a;
+      font-weight: 700;
+    }
+
+    .ecart-negative {
+      color: #148a4b;
+      font-weight: 700;
+    }
+
+    .summary-boxes {
+      display: grid;
+      gap: 14px;
+    }
+
+    .mini-box {
+      background: rgba(255,255,255,0.7);
+      border: 1px solid rgba(255,255,255,0.75);
+      border-radius: 18px;
+      padding: 16px;
+    }
+
+    .mini-box-title {
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+
+    .mini-box-value {
+      font-size: 24px;
+      font-weight: 800;
+    }
+
+    .mini-box-text {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.45;
+    }
+
+    @media (max-width: 1100px) {
+      .cards { grid-template-columns: repeat(2, 1fr); }
+      .grid { grid-template-columns: 1fr; }
+      .hero { flex-direction: column; }
+    }
+
+    @media (max-width: 700px) {
+      .container { padding: 18px; }
+      .cards { grid-template-columns: 1fr; }
+      .hero-left h1 { font-size: 32px; }
+      .panel h2 { font-size: 20px; }
+      .card .value { font-size: 28px; }
+      th, td { padding: 12px 8px; font-size: 14px; }
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>Dashboard Projets</h1>
+    <div class="hero">
+      <div class="hero-left">
+        <h1>Dashboard Projets</h1>
+        <p>
+          Vue consolidée du portefeuille projets : estimation, temps réel, marge,
+          échéances et statut global.
+        </p>
+      </div>
+      <div class="hero-badge">
+        <div class="label">Statut du dashboard</div>
+        <div class="value" id="dashboardStatus">Connexion en cours...</div>
+      </div>
+    </div>
+
     <div id="loading">Chargement des données...</div>
 
     <div class="cards">
-      <div class="card">
+      <div class="card blue">
         <div class="label">Projets suivis</div>
         <div class="value" id="kpiTotal">0</div>
       </div>
-      <div class="card">
+      <div class="card orange">
         <div class="label">Marge moyenne</div>
         <div class="value" id="kpiMarge">0.0%</div>
       </div>
-      <div class="card">
+      <div class="card yellow">
         <div class="label">Écart moyen</div>
         <div class="value" id="kpiEcart">0.0%</div>
       </div>
-      <div class="card">
+      <div class="card coral">
         <div class="label">Projets en alerte</div>
         <div class="value" id="kpiAlertes">0</div>
       </div>
@@ -105,16 +321,49 @@
     <div class="grid">
       <div class="panel">
         <h2>Estimation vs temps réel</h2>
+        <div class="panel-subtitle">Comparatif heures prévues / heures consommées</div>
         <canvas id="barChart"></canvas>
       </div>
+
       <div class="panel">
-        <h2>Répartition des statuts</h2>
-        <canvas id="pieChart"></canvas>
+        <h2>Lecture rapide</h2>
+        <div class="panel-subtitle">Synthèse de l’état du portefeuille</div>
+        <div class="summary-boxes">
+          <div class="mini-box">
+            <div class="mini-box-title">Statuts dominants</div>
+            <div class="mini-box-value" id="dominantStatus">—</div>
+          </div>
+          <div class="mini-box">
+            <div class="mini-box-title">Prochaine deadline</div>
+            <div class="mini-box-value" id="nextDeadline">—</div>
+          </div>
+          <div class="mini-box">
+            <div class="mini-box-title">Analyse</div>
+            <div class="mini-box-text" id="analysisText">
+              En attente de données.
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
-    <div class="panel">
+    <div class="grid">
+      <div class="panel">
+        <h2>Répartition des statuts</h2>
+        <div class="panel-subtitle">OK / Risque / Retard</div>
+        <canvas id="pieChart"></canvas>
+      </div>
+
+      <div class="panel">
+        <h2>Marges par projet</h2>
+        <div class="panel-subtitle">Comparatif de la rentabilité</div>
+        <canvas id="marginChart"></canvas>
+      </div>
+    </div>
+
+    <div class="panel table-panel">
       <h2>Suivi détaillé</h2>
+      <div class="panel-subtitle">Vue détaillée par projet</div>
       <table id="table">
         <thead>
           <tr>
@@ -137,6 +386,7 @@
 
     let barChartInstance = null;
     let pieChartInstance = null;
+    let marginChartInstance = null;
 
     function parseNumber(value) {
       if (value === null || value === undefined || value === "") return 0;
@@ -167,6 +417,15 @@
         deadline: row["8"] || "",
         statut: row["9"] || "OK"
       };
+    }
+
+    function parseDateFr(dateStr) {
+      if (!dateStr) return null;
+      const parts = dateStr.split("/");
+      if (parts.length !== 3) return null;
+      const [day, month, year] = parts;
+      const date = new Date(`${year}-${month}-${day}T00:00:00`);
+      return isNaN(date.getTime()) ? null : date;
     }
 
     async function loadDashboard() {
@@ -200,15 +459,16 @@
         tbody.innerHTML = "";
 
         projets.forEach((p) => {
+          const ecartClass = p.ecart > 0 ? "ecart-positive" : "ecart-negative";
           const tr = document.createElement("tr");
           tr.innerHTML = `
-            <td>${p.projet}</td>
+            <td><strong>${p.projet}</strong></td>
             <td>${p.estimation}h</td>
             <td>${p.temps}h</td>
-            <td>${p.ecart > 0 ? "+" : ""}${p.ecart.toFixed(1)}%</td>
+            <td class="${ecartClass}">${p.ecart > 0 ? "+" : ""}${p.ecart.toFixed(1)}%</td>
             <td>${p.marge.toFixed(2)}%</td>
-            <td>${p.deadline}</td>
-            <td class="${getStatutClass(p.statut)}">${p.statut}</td>
+            <td>${p.deadline || "—"}</td>
+            <td><span class="badge ${getStatutClass(p.statut)}">${p.statut}</span></td>
           `;
           tbody.appendChild(tr);
         });
@@ -226,19 +486,58 @@
           (p) => p.statut === "Risque" || p.statut === "Retard"
         ).length;
 
+        const okCount = projets.filter(
+          (p) => p.statut === "OK" || p.statut === "Terminé"
+        ).length;
+        const risqueCount = projets.filter((p) => p.statut === "Risque").length;
+        const retardCount = projets.filter((p) => p.statut === "Retard").length;
+
+        let dominantStatus = "OK / Terminé";
+        let maxStatus = okCount;
+
+        if (risqueCount > maxStatus) {
+          dominantStatus = "Risque";
+          maxStatus = risqueCount;
+        }
+
+        if (retardCount > maxStatus) {
+          dominantStatus = "Retard";
+        }
+
+        const deadlines = projets
+          .map((p) => ({ projet: p.projet, date: parseDateFr(p.deadline), deadline: p.deadline }))
+          .filter((p) => p.date !== null)
+          .sort((a, b) => a.date - b.date);
+
+        const nextDeadline = deadlines.length ? `${deadlines[0].deadline} · ${deadlines[0].projet}` : "—";
+
+        let analysis = "Portefeuille stable.";
+        if (alertes > 0) {
+          analysis = `${alertes} projet(s) nécessitent une vigilance particulière.`;
+        }
+        if (ecartMoyen > 10) {
+          analysis = `Attention : la consommation réelle dépasse sensiblement les estimations.`;
+        }
+
         document.getElementById("kpiTotal").textContent = total;
         document.getElementById("kpiMarge").textContent = `${margeMoyenne.toFixed(1)}%`;
         document.getElementById("kpiEcart").textContent = `${ecartMoyen > 0 ? "+" : ""}${ecartMoyen.toFixed(1)}%`;
         document.getElementById("kpiAlertes").textContent = alertes;
+        document.getElementById("dominantStatus").textContent = dominantStatus;
+        document.getElementById("nextDeadline").textContent = nextDeadline;
+        document.getElementById("analysisText").textContent = analysis;
+        document.getElementById("loading").textContent = "Données à jour";
+        document.getElementById("dashboardStatus").textContent = "Connecté à Google Sheets via Make";
 
         const barLabels = projets.map((p) => p.projet);
         const estimationData = projets.map((p) => p.estimation);
         const tempsData = projets.map((p) => p.temps);
+        const marginData = projets.map((p) => p.marge);
 
         const statusCount = {
-          "OK / Terminé": projets.filter((p) => p.statut === "OK" || p.statut === "Terminé").length,
-          Risque: projets.filter((p) => p.statut === "Risque").length,
-          Retard: projets.filter((p) => p.statut === "Retard").length
+          "OK / Terminé": okCount,
+          "Risque": risqueCount,
+          "Retard": retardCount
         };
 
         if (barChartInstance) barChartInstance.destroy();
@@ -247,41 +546,101 @@
           data: {
             labels: barLabels,
             datasets: [
-              { label: "Estimation", data: estimationData, backgroundColor: "#3aa0ff" },
-              { label: "Temps réel", data: tempsData, backgroundColor: "#c05a78" }
+              {
+                label: "Estimation",
+                data: estimationData,
+                backgroundColor: "#4f8df7",
+                borderRadius: 10
+              },
+              {
+                label: "Temps réel",
+                data: tempsData,
+                backgroundColor: "#ff8a4c",
+                borderRadius: 10
+              }
             ]
           },
           options: {
             responsive: true,
-            plugins: { legend: { labels: { color: "#fff" } } },
+            plugins: {
+              legend: {
+                labels: { color: "#22324a", boxWidth: 18, usePointStyle: true }
+              }
+            },
             scales: {
-              x: { ticks: { color: "#fff" }, grid: { color: "#22314f" } },
-              y: { beginAtZero: true, ticks: { color: "#fff" }, grid: { color: "#22314f" } }
+              x: {
+                ticks: { color: "#51627a" },
+                grid: { display: false }
+              },
+              y: {
+                beginAtZero: true,
+                ticks: { color: "#51627a" },
+                grid: { color: "rgba(34, 50, 74, 0.08)" }
+              }
             }
           }
         });
 
         if (pieChartInstance) pieChartInstance.destroy();
         pieChartInstance = new Chart(document.getElementById("pieChart"), {
-          type: "pie",
+          type: "doughnut",
           data: {
             labels: Object.keys(statusCount),
             datasets: [{
               data: Object.values(statusCount),
-              backgroundColor: ["#28c45b", "#f4a51c", "#ef4b4b"]
+              backgroundColor: ["#24c26a", "#f7b731", "#ff6b6b"],
+              borderWidth: 0
             }]
           },
           options: {
             responsive: true,
-            plugins: { legend: { labels: { color: "#fff" } } }
+            cutout: "62%",
+            plugins: {
+              legend: {
+                labels: { color: "#22324a", boxWidth: 18, usePointStyle: true }
+              }
+            }
           }
         });
 
-        document.getElementById("loading").textContent = "Données à jour";
+        if (marginChartInstance) marginChartInstance.destroy();
+        marginChartInstance = new Chart(document.getElementById("marginChart"), {
+          type: "bar",
+          data: {
+            labels: barLabels,
+            datasets: [{
+              label: "Marge (%)",
+              data: marginData,
+              backgroundColor: "#f7b731",
+              borderRadius: 10
+            }]
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: {
+                labels: { color: "#22324a", boxWidth: 18, usePointStyle: true }
+              }
+            },
+            scales: {
+              x: {
+                ticks: { color: "#51627a" },
+                grid: { display: false }
+              },
+              y: {
+                beginAtZero: true,
+                ticks: { color: "#51627a" },
+                grid: { color: "rgba(34, 50, 74, 0.08)" }
+              }
+            }
+          }
+        });
+
       } catch (error) {
         console.error("Erreur dashboard :", error);
         document.getElementById("loading").textContent =
           "Erreur de chargement des données : " + error.message;
+        document.getElementById("dashboardStatus").textContent = "Connexion en erreur";
       }
     }
 
