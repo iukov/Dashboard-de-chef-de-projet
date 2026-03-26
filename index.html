@@ -12,79 +12,65 @@
       padding: 20px;
       margin: 0;
     }
-
     h1 {
       margin: 0 0 24px 0;
       font-size: 28px;
     }
-
     .container {
       max-width: 1280px;
       margin: auto;
     }
-
     .cards {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
       gap: 16px;
       margin-bottom: 24px;
     }
-
     .card, .panel {
       background: #1c2b47;
       border-radius: 18px;
       padding: 20px;
     }
-
     .card .label {
       color: #b7c2d6;
       font-size: 14px;
       margin-bottom: 10px;
     }
-
     .card .value {
       font-size: 24px;
       font-weight: bold;
     }
-
     .grid {
       display: grid;
       grid-template-columns: 2fr 1fr;
       gap: 20px;
       margin-bottom: 24px;
     }
-
     .panel h2 {
       margin-top: 0;
       margin-bottom: 18px;
       font-size: 18px;
     }
-
     table {
       width: 100%;
       border-collapse: collapse;
     }
-
     th, td {
       padding: 14px 10px;
       border-bottom: 1px solid #334766;
       text-align: left;
     }
-
     th {
       color: #aab7cf;
       font-weight: 600;
     }
-
     .ok { color: #19d66b; font-weight: 700; }
     .risque { color: #f7b731; font-weight: 700; }
     .retard { color: #ff5c5c; font-weight: 700; }
-
     #loading {
       margin-bottom: 20px;
       color: #c9d4e7;
     }
-
     @media (max-width: 960px) {
       .cards, .grid {
         grid-template-columns: 1fr;
@@ -146,29 +132,160 @@
     </div>
   </div>
 
- <script>
-  const WEBHOOK_URL = "https://hook.eu2.make.com/iw04o4auv4sicpvs4hzduj5shja3axkn";
+  <script>
+    const WEBHOOK_URL = "https://hook.eu2.make.com/iw04o4auv4sicpvs4hzduj5shja3axkn";
 
-  async function loadDashboard() {
-    try {
-      const response = await fetch(WEBHOOK_URL, { cache: "no-store" });
+    let barChartInstance = null;
+    let pieChartInstance = null;
 
-      const text = await response.text();
+    function parseNumber(value) {
+      if (value === null || value === undefined || value === "") return 0;
 
-      document.getElementById("loading").innerHTML =
-        "<pre style='white-space:pre-wrap;color:white;background:#111;padding:16px;border-radius:12px;overflow:auto;'>" +
-        text.replace(/</g, "&lt;") +
-        "</pre>";
+      const cleaned = String(value)
+        .replace(/€/g, "")
+        .replace(/%/g, "")
+        .replace(/\s/g, "")
+        .replace(/,/g, "");
 
-      console.log("Réponse brute Make :", text);
-    } catch (error) {
-      document.getElementById("loading").textContent =
-        "Erreur de chargement des données : " + error.message;
-      console.error(error);
+      const num = Number(cleaned);
+      return Number.isNaN(num) ? 0 : num;
     }
-  }
 
-  loadDashboard();
-</script>
+    function getStatutClass(statut) {
+      if (statut === "OK" || statut === "Terminé") return "ok";
+      if (statut === "Risque") return "risque";
+      if (statut === "Retard") return "retard";
+      return "";
+    }
+
+    function normalizeRow(row) {
+      return {
+        projet: row["0"] || "Sans nom",
+        estimation: parseNumber(row["1"]),
+        temps: parseNumber(row["2"]),
+        marge: parseNumber(row["7"]),
+        deadline: row["8"] || "",
+        statut: row["9"] || "OK"
+      };
+    }
+
+    async function loadDashboard() {
+      try {
+        const response = await fetch(WEBHOOK_URL, { cache: "no-store" });
+
+        if (response.status === 429) {
+          throw new Error("Limite Make atteinte. Attends 1 à 2 minutes avant de recharger.");
+        }
+
+        if (!response.ok) {
+          throw new Error("HTTP " + response.status);
+        }
+
+        const text = await response.text();
+        const data = JSON.parse(text);
+
+        if (!Array.isArray(data)) {
+          throw new Error("La réponse n'est pas un tableau.");
+        }
+
+        const projets = data.map(normalizeRow).map((p) => {
+          const ecart = p.estimation > 0
+            ? ((p.temps - p.estimation) / p.estimation) * 100
+            : 0;
+
+          return { ...p, ecart };
+        });
+
+        const tbody = document.querySelector("#table tbody");
+        tbody.innerHTML = "";
+
+        projets.forEach((p) => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${p.projet}</td>
+            <td>${p.estimation}h</td>
+            <td>${p.temps}h</td>
+            <td>${p.ecart > 0 ? "+" : ""}${p.ecart.toFixed(1)}%</td>
+            <td>${p.marge.toFixed(2)}%</td>
+            <td>${p.deadline}</td>
+            <td class="${getStatutClass(p.statut)}">${p.statut}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+
+        const total = projets.length;
+        const margeMoyenne = total
+          ? projets.reduce((sum, p) => sum + p.marge, 0) / total
+          : 0;
+
+        const ecartMoyen = total
+          ? projets.reduce((sum, p) => sum + p.ecart, 0) / total
+          : 0;
+
+        const alertes = projets.filter(
+          (p) => p.statut === "Risque" || p.statut === "Retard"
+        ).length;
+
+        document.getElementById("kpiTotal").textContent = total;
+        document.getElementById("kpiMarge").textContent = `${margeMoyenne.toFixed(1)}%`;
+        document.getElementById("kpiEcart").textContent = `${ecartMoyen > 0 ? "+" : ""}${ecartMoyen.toFixed(1)}%`;
+        document.getElementById("kpiAlertes").textContent = alertes;
+
+        const barLabels = projets.map((p) => p.projet);
+        const estimationData = projets.map((p) => p.estimation);
+        const tempsData = projets.map((p) => p.temps);
+
+        const statusCount = {
+          "OK / Terminé": projets.filter((p) => p.statut === "OK" || p.statut === "Terminé").length,
+          Risque: projets.filter((p) => p.statut === "Risque").length,
+          Retard: projets.filter((p) => p.statut === "Retard").length
+        };
+
+        if (barChartInstance) barChartInstance.destroy();
+        barChartInstance = new Chart(document.getElementById("barChart"), {
+          type: "bar",
+          data: {
+            labels: barLabels,
+            datasets: [
+              { label: "Estimation", data: estimationData, backgroundColor: "#3aa0ff" },
+              { label: "Temps réel", data: tempsData, backgroundColor: "#c05a78" }
+            ]
+          },
+          options: {
+            responsive: true,
+            plugins: { legend: { labels: { color: "#fff" } } },
+            scales: {
+              x: { ticks: { color: "#fff" }, grid: { color: "#22314f" } },
+              y: { beginAtZero: true, ticks: { color: "#fff" }, grid: { color: "#22314f" } }
+            }
+          }
+        });
+
+        if (pieChartInstance) pieChartInstance.destroy();
+        pieChartInstance = new Chart(document.getElementById("pieChart"), {
+          type: "pie",
+          data: {
+            labels: Object.keys(statusCount),
+            datasets: [{
+              data: Object.values(statusCount),
+              backgroundColor: ["#28c45b", "#f4a51c", "#ef4b4b"]
+            }]
+          },
+          options: {
+            responsive: true,
+            plugins: { legend: { labels: { color: "#fff" } } }
+          }
+        });
+
+        document.getElementById("loading").textContent = "Données à jour";
+      } catch (error) {
+        console.error("Erreur dashboard :", error);
+        document.getElementById("loading").textContent =
+          "Erreur de chargement des données : " + error.message;
+      }
+    }
+
+    loadDashboard();
+  </script>
 </body>
 </html>
