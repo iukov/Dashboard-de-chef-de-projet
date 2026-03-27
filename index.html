@@ -503,10 +503,17 @@
         if (retardCount > maxStatus) {
           dominantStatus = "Retard";
         }
-
+        
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
         const deadlines = projets
-          .map((p) => ({ projet: p.projet, date: parseDateFr(p.deadline), deadline: p.deadline }))
-          .filter((p) => p.date !== null)
+          .map((p) => ({
+            projet: p.projet,
+            date: parseDateFr(p.deadline),
+            deadline: p.deadline
+          }))
+          .filter((p) => p.date !== null && p.date >= today) // 🔥 filtre FUTUR
           .sort((a, b) => a.date - b.date);
 
         const nextDeadline = deadlines.length ? `${deadlines[0].deadline} · ${deadlines[0].projet}` : "—";
