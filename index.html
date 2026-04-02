@@ -184,7 +184,7 @@ function parseGViz(json) {
     if (!projet) return null;
     return {
       projet, estimation:num(row,"estimation"), temps_reel:num(row,"temps_reel"),
-      ecart:num(row,"ecart"), avancement:Math.min(100,Math.max(0,num(row,"avancement"))),
+      ecart:num(row,"ecart"),       avancement:Math.min(100,Math.max(0,num(row,"avancement")*100)),
       ca_ht:num(row,"ca_ht"), cout_reel:num(row,"cout_reel"),
       marge_brut:num(row,"marge_brut"), marge_pct:num(row,"marge_pct")*100,
       deadline:str(row,"deadline"), phase:str(row,"phase")||"—",
