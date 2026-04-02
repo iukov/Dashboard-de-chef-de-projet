@@ -190,7 +190,15 @@ function parseCSV(csv) {
   const col = CONFIG.COLUMNS;
   const idx = k => headers.indexOf(col[k]);
   const get = (vals, k) => { const i=idx(k); return i>=0 ? (vals[i]||"").replace(/^"|"$/g,"").trim() : ""; };
-  const num = (vals, k) => parseFloat(get(vals,k).replace(",",".")) || 0;
+      const num = (vals, k) => {
+      const raw = get(vals,k)
+        .replace(/\s/g,"")       // supprime espaces insécables
+        .replace(/€/g,"")        // supprime symbole €
+        .replace(/%/g,"")        // supprime symbole %
+        .replace(/\./g,"")       // supprime séparateur de milliers (point)
+        .replace(",",".");        // virgule décimale → point
+      return parseFloat(raw) || 0;
+    };
 
   return lines.slice(1).map(line => {
     const vals = line.match(/(".*?"|[^,\n]+)/g) || [];
