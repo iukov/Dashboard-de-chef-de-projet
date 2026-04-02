@@ -171,11 +171,15 @@ let currentPhase = "all";
 async function loadData() {
   document.getElementById("last-update").textContent = "Actualisation...";
   document.getElementById("error-zone").innerHTML = "";
-  const url = `https://docs.google.com/spreadsheets/d/${CONFIG.SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(CONFIG.SHEET_NAME)}`;
+  // Utilise l'export JSON gviz qui respecte les types de données natifs
+  const url = `https://docs.google.com/spreadsheets/d/${CONFIG.SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(CONFIG.SHEET_NAME)}`;
   try {
     const res = await fetch(url);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    data = parseCSV(await res.text());
+    const text = await res.text();
+    // Google enveloppe la réponse dans google.visualization.Query.setResponse(...)
+    const json = JSON.parse(text.match(/google\.visualization\.Query\.setResponse\(([\s\S]*)\)/)[1]);
+    data = parseGViz(json);
     renderAll();
     document.getElementById("last-update").textContent = "Mis à jour : " + new Date().toLocaleString("fr-FR",{dateStyle:"short",timeStyle:"short"});
   } catch(e) {
