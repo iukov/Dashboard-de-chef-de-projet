@@ -171,7 +171,14 @@ function parseGViz(json) {
   const idx = k => cols.indexOf(col[k]);
   const getV = (row, k) => { const i=idx(k); return (i>=0 && row.c[i] && row.c[i].v != null) ? row.c[i].v : null; };
   const num = (row, k) => { const v = getV(row,k); return typeof v==="number" ? v : parseFloat((v||"").toString().replace(",",".")) || 0; };
-  const str = (row, k) => { const v = getV(row,k); return v!=null ? v.toString().trim() : ""; };
+  const str = (row, k) => {
+    const v = getV(row,k);
+    if (v == null) return "";
+    // Dates gviz : "Date(2026,1,27)" → jour/mois/année
+    const d = v.toString().match(/Date\((\d+),(\d+),(\d+)\)/);
+    if (d) return `${d[3].padStart(2,"0")}/${String(+d[2]+1).padStart(2,"0")}/${d[1]}`;
+    return v.toString().trim();
+  };
   return json.table.rows.map(row => {
     const projet = str(row,"projet");
     if (!projet) return null;
