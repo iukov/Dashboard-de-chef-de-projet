@@ -8,6 +8,22 @@
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 body{font-family:system-ui,sans-serif;background:#f5f5f3;color:#1a1a18;font-size:15px}
+
+/* ── Login ── */
+#login-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f5f5f3}
+#login-box{background:#fff;border:0.5px solid #d3d1c7;border-radius:12px;padding:2rem 2.5rem;width:340px;text-align:center}
+#login-box h2{font-size:17px;font-weight:500;margin-bottom:0.5rem}
+#login-box p{font-size:13px;color:#888780;margin-bottom:1.5rem}
+#login-box input{width:100%;padding:10px 12px;border:0.5px solid #b4b2a9;border-radius:8px;font-size:14px;margin-bottom:12px;outline:none}
+#login-box input:focus{border-color:#378ADD}
+#login-box button{width:100%;padding:10px;background:#378ADD;color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer;font-weight:500}
+#login-box button:hover{background:#2a6fba}
+#login-error{color:#E24B4A;font-size:12px;margin-top:8px;display:none}
+#logout-btn{padding:6px 14px;border:0.5px solid #b4b2a9;border-radius:8px;font-size:12px;cursor:pointer;background:transparent;color:#444441}
+#logout-btn:hover{background:#f1efe8}
+
+/* ── App (masquée jusqu'au login) ── */
+#app{display:none}
 header{background:#fff;border-bottom:0.5px solid #d3d1c7;padding:1rem 2rem;display:flex;align-items:center;justify-content:space-between}
 header h1{font-size:17px;font-weight:500}
 .last-update{font-size:12px;color:#888780}
@@ -51,18 +67,33 @@ tr:last-child td{border-bottom:none}
 </head>
 <body>
 
+<!-- ── ÉCRAN DE CONNEXION ── -->
+<div id="login-screen">
+  <div id="login-box">
+    <h2>Dashboard Projets</h2>
+    <p>Accès restreint — veuillez vous identifier</p>
+    <input type="text" id="login-user" placeholder="Identifiant" autocomplete="username"/>
+    <input type="password" id="login-pass" placeholder="Mot de passe" autocomplete="current-password"
+           onkeydown="if(event.key==='Enter') doLogin()"/>
+    <button onclick="doLogin()">Se connecter</button>
+    <div id="login-error">Identifiant ou mot de passe incorrect.</div>
+  </div>
+</div>
+
+<!-- ── APPLICATION ── -->
+<div id="app">
 <header>
   <h1>Dashboard — Portefeuille projets</h1>
   <div style="display:flex;align-items:center;gap:12px">
     <span class="last-update" id="last-update">Chargement...</span>
     <button class="btn-refresh" onclick="loadData()">↻ Actualiser</button>
+    <button id="logout-btn" onclick="doLogout()">Déconnexion</button>
   </div>
 </header>
 
 <main>
   <div id="error-zone"></div>
   <div id="alert-zone"></div>
-
   <div class="tabs">
     <button class="tab active" onclick="showTab('overview',this)">Vue globale</button>
     <button class="tab" onclick="showTab('projets',this)">Projets</button>
@@ -70,7 +101,6 @@ tr:last-child td{border-bottom:none}
     <button class="tab" onclick="showTab('charge',this)">Charge</button>
   </div>
 
-  <!-- VUE GLOBALE -->
   <div id="overview" class="section active">
     <div class="kpis" id="kpis"></div>
     <div class="charts-row">
@@ -84,7 +114,6 @@ tr:last-child td{border-bottom:none}
     </div>
   </div>
 
-  <!-- PROJETS -->
   <div id="projets" class="section">
     <div class="filter-bar">
       <button class="filter-btn active" onclick="filterP('all',this)">Tous</button>
@@ -99,7 +128,6 @@ tr:last-child td{border-bottom:none}
     </div>
   </div>
 
-  <!-- FINANCIER -->
   <div id="finance" class="section">
     <div class="seuil-bar">
       <label>Alerte marge si &lt;</label>
@@ -122,7 +150,6 @@ tr:last-child td{border-bottom:none}
     </div>
   </div>
 
-  <!-- CHARGE -->
   <div id="charge" class="section">
     <div class="kpis" id="kpis-charge"></div>
     <div class="charts-row">
@@ -136,33 +163,67 @@ tr:last-child td{border-bottom:none}
     </div>
   </div>
 </main>
+</div><!-- /#app -->
 
 <script>
 // ════════════════════════════════════════════════════════
-//  ⚙️  CONFIGURATION — À ADAPTER
+//  🔐  UTILISATEURS AUTORISÉS
+//  Format : { user: "identifiant", pass: "motdepasse" }
+//  Ajoute autant d'utilisateurs que nécessaire
+// ════════════════════════════════════════════════════════
+const USERS = [
+  { user: "iulya",     pass: "ARGO2026!" },
+  { user: "direction", pass: "ARGO2026!"   }
+];
+
+// ════════════════════════════════════════════════════════
+//  ⚙️  CONFIGURATION GOOGLE SHEETS
 // ════════════════════════════════════════════════════════
 const CONFIG = {
   SHEET_ID:   "1wYDUgcKN748KIwksZB8FtU3xGqa-PjuEyqVEFlJQ0Ow",
   SHEET_NAME: "SUIVI_PROJETS",
-
-  // Noms EXACTS des colonnes dans ton Sheet (A→L)
   COLUMNS: {
-    projet:      "Projet",
-    estimation:  "Estimation (h)",
-    temps_reel:  "Temps réel (h)",
-    ecart:       "Écart (%)",
-    avancement:  "Avancement (%)",
-    ca_ht:       "Payé par client (euros HT)",
-    cout_reel:   "Cout réele (euros)",
-    marge_brut:  "Marge brut",
-    marge_pct:   "Marge (%)",
-    deadline:    "Deadline",
-    phase:       "Phase",
-    statut:      "Statut"
+    projet:     "Projet",
+    estimation: "Estimation (h)",
+    temps_reel: "Temps réel (h)",
+    ecart:      "Écart (%)",
+    avancement: "Avancement (%)",
+    ca_ht:      "Payé par client (euros HT)",
+    cout_reel:  "Cout réele (euros)",
+    marge_brut: "Marge brut",
+    marge_pct:  "Marge (%)",
+    deadline:   "Deadline",
+    phase:      "Phase",
+    statut:     "Statut"
   }
 };
 // ════════════════════════════════════════════════════════
 
+// ── Auth ──
+function doLogin() {
+  const u = document.getElementById("login-user").value.trim();
+  const p = document.getElementById("login-pass").value;
+  const ok = USERS.find(x => x.user === u && x.pass === p);
+  if (ok) {
+    sessionStorage.setItem("db_auth", u);
+    document.getElementById("login-screen").style.display = "none";
+    document.getElementById("app").style.display = "block";
+    loadData();
+  } else {
+    document.getElementById("login-error").style.display = "block";
+  }
+}
+function doLogout() {
+  sessionStorage.removeItem("db_auth");
+  location.reload();
+}
+// Vérifie si déjà connecté (même session)
+if (sessionStorage.getItem("db_auth")) {
+  document.getElementById("login-screen").style.display = "none";
+  document.getElementById("app").style.display = "block";
+}
+
+// ── Data ──
 let data = [], charts = {}, currentFilter = "all", currentPhase = "all";
 
 function parseGViz(json) {
@@ -170,11 +231,10 @@ function parseGViz(json) {
   const col = CONFIG.COLUMNS;
   const idx = k => cols.indexOf(col[k]);
   const getV = (row, k) => { const i=idx(k); return (i>=0 && row.c[i] && row.c[i].v != null) ? row.c[i].v : null; };
-  const num = (row, k) => { const v = getV(row,k); return typeof v==="number" ? v : parseFloat((v||"").toString().replace(",",".")) || 0; };
+  const num = (row, k) => { const v=getV(row,k); return typeof v==="number"?v:parseFloat((v||"").toString().replace(",","."))||0; };
   const str = (row, k) => {
     const v = getV(row,k);
-    if (v == null) return "";
-    // Dates gviz : "Date(2026,1,27)" → jour/mois/année
+    if (v==null) return "";
     const d = v.toString().match(/Date\((\d+),(\d+),(\d+)\)/);
     if (d) return `${d[3].padStart(2,"0")}/${String(+d[2]+1).padStart(2,"0")}/${d[1]}`;
     return v.toString().trim();
@@ -184,7 +244,7 @@ function parseGViz(json) {
     if (!projet) return null;
     return {
       projet, estimation:num(row,"estimation"), temps_reel:num(row,"temps_reel"),
-      ecart:num(row,"ecart"),       avancement:Math.min(100,Math.max(0,num(row,"avancement")*100)),
+      ecart:num(row,"ecart"), avancement:Math.min(100,Math.max(0,num(row,"avancement")*100)),
       ca_ht:num(row,"ca_ht"), cout_reel:num(row,"cout_reel"),
       marge_brut:num(row,"marge_brut"), marge_pct:num(row,"marge_pct")*100,
       deadline:str(row,"deadline"), phase:str(row,"phase")||"—",
@@ -194,222 +254,147 @@ function parseGViz(json) {
 }
 
 async function loadData() {
+  if (!sessionStorage.getItem("db_auth")) return;
   document.getElementById("last-update").textContent = "Actualisation...";
   document.getElementById("error-zone").innerHTML = "";
-  // Utilise l'export JSON gviz qui respecte les types de données natifs
   const url = `https://docs.google.com/spreadsheets/d/${CONFIG.SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(CONFIG.SHEET_NAME)}`;
   try {
     const res = await fetch(url);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const text = await res.text();
-    // Google enveloppe la réponse dans google.visualization.Query.setResponse(...)
     const json = JSON.parse(text.match(/google\.visualization\.Query\.setResponse\(([\s\S]*)\)/)[1]);
     data = parseGViz(json);
     renderAll();
-
     document.getElementById("last-update").textContent = "Mis à jour : " + new Date().toLocaleString("fr-FR",{dateStyle:"short",timeStyle:"short"});
   } catch(e) {
-    document.getElementById("error-zone").innerHTML = `<div class="error-box">Impossible de charger les données. Vérifie que le Sheet est public et que SHEET_ID est correct.<br><small>${e.message}</small></div>`;
+    document.getElementById("error-zone").innerHTML = `<div class="error-box">Impossible de charger les données.<br><small>${e.message}</small></div>`;
     document.getElementById("last-update").textContent = "Erreur";
   }
 }
 
-function parseCSV(csv) {
-  const lines = csv.trim().split("\n");
-  const headers = lines[0].split(",").map(h => h.replace(/^"|"$/g,"").trim());
-  const col = CONFIG.COLUMNS;
-  const idx = k => headers.indexOf(col[k]);
-  const get = (vals, k) => { const i=idx(k); return i>=0 ? (vals[i]||"").replace(/^"|"$/g,"").trim() : ""; };
-      const num = (vals, k) => {
-      const raw = get(vals,k)
-        .replace(/\s/g,"")       // supprime espaces insécables
-        .replace(/€/g,"")        // supprime symbole €
-        .replace(/%/g,"")        // supprime symbole %
-        .replace(/\./g,"")       // supprime séparateur de milliers (point)
-        .replace(",",".");        // virgule décimale → point
-      return parseFloat(raw) || 0;
-    };
-
-  return lines.slice(1).map(line => {
-    const vals = line.match(/(".*?"|[^,\n]+)/g) || [];
-    const projet = get(vals,"projet");
-    if (!projet) return null;
-    return {
-      projet,
-      estimation:  num(vals,"estimation"),
-      temps_reel:  num(vals,"temps_reel"),
-      ecart:       num(vals,"ecart"),
-      avancement:  Math.min(100, Math.max(0, num(vals,"avancement"))),
-      ca_ht:       num(vals,"ca_ht"),
-      cout_reel:   num(vals,"cout_reel"),
-      marge_brut:  num(vals,"marge_brut"),
-      marge_pct:   num(vals,"marge_pct"),
-      deadline:    get(vals,"deadline"),
-      phase:       get(vals,"phase") || "—",
-      statut:      get(vals,"statut").toLowerCase() || "ok"
-    };
-  }).filter(Boolean);
-}
-
-function renderAll() {
-  renderAlerts();
-  renderOverview();
-  renderProjets();
-  renderFinance();
-  renderCharge();
-  renderPhaseFilters();
-}
+function renderAll(){renderAlerts();renderOverview();renderProjets();renderFinance();renderCharge();renderPhaseFilters();}
 
 function renderAlerts() {
-  const seuilM = parseFloat(document.getElementById("seuilMarge")?.value || 20);
-  const seuilE = parseFloat(document.getElementById("seuilEcart")?.value || 10);
-  const alerts = [];
-  data.forEach(p => {
-    if (p.marge_pct < seuilM) alerts.push(`<strong>${p.projet}</strong> — marge ${p.marge_pct.toFixed(1)}% (seuil ${seuilM}%)`);
-    if (Math.abs(p.ecart) > seuilE) alerts.push(`<strong>${p.projet}</strong> — écart charge ${p.ecart>0?"+":""}${p.ecart.toFixed(1)}% (seuil ${seuilE}%)`);
-    if (p.statut === "danger") alerts.push(`<strong>${p.projet}</strong> — statut critique`);
+  const seuilM=parseFloat(document.getElementById("seuilMarge")?.value||20);
+  const seuilE=parseFloat(document.getElementById("seuilEcart")?.value||10);
+  const alerts=[];
+  data.forEach(p=>{
+    if(p.marge_pct<seuilM) alerts.push(`<strong>${p.projet}</strong> — marge ${p.marge_pct.toFixed(1)}% (seuil ${seuilM}%)`);
+    if(Math.abs(p.ecart)>seuilE) alerts.push(`<strong>${p.projet}</strong> — écart ${p.ecart>0?"+":""}${p.ecart.toFixed(1)}%`);
+    if(p.statut==="danger") alerts.push(`<strong>${p.projet}</strong> — statut critique`);
   });
-  document.getElementById("alert-zone").innerHTML = alerts.length
-    ? `<div class="alert-box">⚠ ${alerts.length} alerte(s) : ${alerts.join(" · ")}</div>` : "";
+  document.getElementById("alert-zone").innerHTML=alerts.length?`<div class="alert-box">⚠ ${alerts.length} alerte(s) : ${alerts.join(" · ")}</div>`:"";
 }
 
 function renderOverview() {
-  const total = data.length;
-  const onTime = data.filter(p=>p.statut==="ok").length;
-  const avgProg = total ? Math.round(data.reduce((s,p)=>s+p.avancement,0)/total) : 0;
-  const avgMarge = total ? (data.reduce((s,p)=>s+p.marge_pct,0)/total).toFixed(1) : 0;
-  const totalCA = data.reduce((s,p)=>s+p.ca_ht,0);
-
-  document.getElementById("kpis").innerHTML = `
+  const total=data.length, onTime=data.filter(p=>p.statut==="ok").length;
+  const avgProg=total?Math.round(data.reduce((s,p)=>s+p.avancement,0)/total):0;
+  const avgMarge=total?(data.reduce((s,p)=>s+p.marge_pct,0)/total).toFixed(1):0;
+  const totalCA=data.reduce((s,p)=>s+p.ca_ht,0);
+  document.getElementById("kpis").innerHTML=`
     <div class="kpi"><div class="kpi-label">Projets actifs</div><div class="kpi-val">${total}</div><div class="kpi-sub ok">${onTime} dans les délais</div></div>
     <div class="kpi"><div class="kpi-label">Avancement moyen</div><div class="kpi-val">${avgProg}%</div></div>
     <div class="kpi"><div class="kpi-label">CA total HT</div><div class="kpi-val">${totalCA.toLocaleString("fr-FR")} €</div></div>
     <div class="kpi"><div class="kpi-label">Marge moyenne</div><div class="kpi-val ${avgMarge<20?"danger":avgMarge<30?"warn":"ok"}">${avgMarge}%</div></div>`;
-
-  const labels = data.map(p=>short(p.projet));
+  const labels=data.map(p=>short(p.projet));
   destroyChart("cProg");
-  charts.cProg = new Chart(document.getElementById("cProg"),{type:"bar",data:{labels,datasets:[{data:data.map(p=>p.avancement),backgroundColor:data.map(p=>statusColor(p.statut)),borderRadius:3}]},options:chartOpts(100)});
+  charts.cProg=new Chart(document.getElementById("cProg"),{type:"bar",data:{labels,datasets:[{data:data.map(p=>p.avancement),backgroundColor:data.map(p=>statusColor(p.statut)),borderRadius:3}]},options:chartOpts(100)});
   destroyChart("cMarge");
-  charts.cMarge = new Chart(document.getElementById("cMarge"),{type:"bar",data:{labels,datasets:[{data:data.map(p=>+p.marge_pct.toFixed(1)),backgroundColor:data.map(p=>p.marge_pct<20?"#E24B4A":p.marge_pct<30?"#EF9F27":"#1D9E75"),borderRadius:3}]},options:chartOpts()});
-
-  document.getElementById("t-overview").innerHTML = data.map(p=>`
-    <tr>
-      <td style="font-weight:500">${p.projet}</td>
-      <td><span class="badge b-ok" style="background:#E6F1FB;color:#185FA5">${p.phase}</span></td>
-      <td>${progBar(p.avancement,p.statut)}</td>
-      <td style="font-size:12px;color:#888780">${p.deadline}</td>
-      <td class="${p.marge_pct<20?"danger":p.marge_pct<30?"warn":"ok"}" style="font-weight:500">${p.marge_pct.toFixed(1)}%</td>
-      <td>${badge(p.statut)}</td>
-    </tr>`).join("");
+  charts.cMarge=new Chart(document.getElementById("cMarge"),{type:"bar",data:{labels,datasets:[{data:data.map(p=>+p.marge_pct.toFixed(1)),backgroundColor:data.map(p=>p.marge_pct<20?"#E24B4A":p.marge_pct<30?"#EF9F27":"#1D9E75"),borderRadius:3}]},options:chartOpts()});
+  document.getElementById("t-overview").innerHTML=data.map(p=>`
+    <tr><td style="font-weight:500">${p.projet}</td>
+    <td><span class="badge" style="background:#E6F1FB;color:#185FA5">${p.phase}</span></td>
+    <td>${progBar(p.avancement,p.statut)}</td>
+    <td style="font-size:12px;color:#888780">${p.deadline}</td>
+    <td class="${p.marge_pct<20?"danger":p.marge_pct<30?"warn":"ok"}" style="font-weight:500">${p.marge_pct.toFixed(1)}%</td>
+    <td>${badge(p.statut)}</td></tr>`).join("");
 }
 
-function renderProjets(filter, phase) {
-  filter = filter || currentFilter;
-  phase = phase || currentPhase;
-  let d = data;
-  if (filter !== "all") d = d.filter(p=>p.statut===filter);
-  if (phase !== "all") d = d.filter(p=>p.phase===phase);
-  document.getElementById("t-projets").innerHTML = d.map(p=>`
-    <tr>
-      <td style="font-weight:500">${p.projet}</td>
-      <td><span class="badge" style="background:#E6F1FB;color:#185FA5">${p.phase}</span></td>
-      <td>${progBar(p.avancement,p.statut)}</td>
-      <td class="${Math.abs(p.ecart)>10?"danger":Math.abs(p.ecart)>5?"warn":"ok"}">${p.ecart>0?"+":""}${p.ecart.toFixed(1)}%</td>
-      <td style="font-size:12px;color:#888780">${p.deadline}</td>
-      <td>${badge(p.statut)}</td>
-    </tr>`).join("");
+function renderProjets(filter,phase) {
+  filter=filter||currentFilter; phase=phase||currentPhase;
+  let d=data;
+  if(filter!=="all") d=d.filter(p=>p.statut===filter);
+  if(phase!=="all") d=d.filter(p=>p.phase===phase);
+  document.getElementById("t-projets").innerHTML=d.map(p=>`
+    <tr><td style="font-weight:500">${p.projet}</td>
+    <td><span class="badge" style="background:#E6F1FB;color:#185FA5">${p.phase}</span></td>
+    <td>${progBar(p.avancement,p.statut)}</td>
+    <td class="${Math.abs(p.ecart)>10?"danger":Math.abs(p.ecart)>5?"warn":"ok"}">${p.ecart>0?"+":""}${p.ecart.toFixed(1)}%</td>
+    <td style="font-size:12px;color:#888780">${p.deadline}</td>
+    <td>${badge(p.statut)}</td></tr>`).join("");
 }
 
 function renderPhaseFilters() {
-  const phases = [...new Set(data.map(p=>p.phase).filter(p=>p&&p!=="—"))];
-  const bar = document.getElementById("phase-filters");
-  bar.innerHTML = `<button class="filter-btn ${currentPhase==="all"?"active":""}" onclick="setPhase('all',this)">Toutes les phases</button>`
-    + phases.map(ph=>`<button class="filter-btn ${currentPhase===ph?"active":""}" onclick="setPhase('${ph}',this)">${ph}</button>`).join("");
+  const phases=[...new Set(data.map(p=>p.phase).filter(p=>p&&p!=="—"))];
+  document.getElementById("phase-filters").innerHTML=
+    `<button class="filter-btn ${currentPhase==="all"?"active":""}" onclick="setPhase('all',this)">Toutes les phases</button>`
+    +phases.map(ph=>`<button class="filter-btn" onclick="setPhase('${ph}',this)">${ph}</button>`).join("");
 }
 
 function renderFinance() {
-  const seuilM = parseFloat(document.getElementById("seuilMarge")?.value || 20);
-  const seuilE = parseFloat(document.getElementById("seuilEcart")?.value || 10);
-  const totalCA = data.reduce((s,p)=>s+p.ca_ht,0);
-  const totalCout = data.reduce((s,p)=>s+p.cout_reel,0);
-  const totalMarge = data.reduce((s,p)=>s+p.marge_brut,0);
-  const margeGlobale = totalCA ? (totalMarge/totalCA*100).toFixed(1) : 0;
-  const labels = data.map(p=>short(p.projet));
-
-  document.getElementById("kpis-finance").innerHTML = `
+  const seuilM=parseFloat(document.getElementById("seuilMarge")?.value||20);
+  const seuilE=parseFloat(document.getElementById("seuilEcart")?.value||10);
+  const totalCA=data.reduce((s,p)=>s+p.ca_ht,0);
+  const totalCout=data.reduce((s,p)=>s+p.cout_reel,0);
+  const totalMarge=data.reduce((s,p)=>s+p.marge_brut,0);
+  const margeGlobale=totalCA?(totalMarge/totalCA*100).toFixed(1):0;
+  const labels=data.map(p=>short(p.projet));
+  document.getElementById("kpis-finance").innerHTML=`
     <div class="kpi"><div class="kpi-label">CA total HT</div><div class="kpi-val">${totalCA.toLocaleString("fr-FR")} €</div></div>
     <div class="kpi"><div class="kpi-label">Coût total réel</div><div class="kpi-val warn">${totalCout.toLocaleString("fr-FR")} €</div></div>
     <div class="kpi"><div class="kpi-label">Marge brute totale</div><div class="kpi-val ok">${totalMarge.toLocaleString("fr-FR")} €</div></div>
-    <div class="kpi"><div class="kpi-label">Marge globale</div><div class="kpi-val ${margeGlobale<seuilM?"danger":"ok"}">${margeGlobale}%</div></div>`;
-
+    <div class="kpi"><div class="kpi-val ${margeGlobale<seuilM?"danger":"ok"}">${margeGlobale}%</div><div class="kpi-label">Marge globale</div></div>`;
   destroyChart("cFinance");
-  charts.cFinance = new Chart(document.getElementById("cFinance"),{type:"bar",data:{labels,datasets:[
+  charts.cFinance=new Chart(document.getElementById("cFinance"),{type:"bar",data:{labels,datasets:[
     {label:"CA HT",data:data.map(p=>p.ca_ht),backgroundColor:"#378ADD",borderRadius:3},
     {label:"Coût réel",data:data.map(p=>p.cout_reel),backgroundColor:"#F09595",borderRadius:3}
   ]},options:{...chartOpts(),plugins:{legend:{display:false}}}});
-
   destroyChart("cMargeEur");
-  charts.cMargeEur = new Chart(document.getElementById("cMargeEur"),{type:"bar",data:{labels,datasets:[{data:data.map(p=>p.marge_brut),backgroundColor:data.map(p=>p.marge_pct<seuilM?"#E24B4A":"#1D9E75"),borderRadius:3}]},options:chartOpts()});
-
-  document.getElementById("t-finance").innerHTML = data.map(p=>{
-    const alertes=[];
-    if(p.marge_pct<seuilM) alertes.push(`<span class="badge b-danger">Marge faible</span>`);
-    if(Math.abs(p.ecart)>seuilE) alertes.push(`<span class="badge b-warn">Dépassement</span>`);
-    return `<tr>
-      <td style="font-weight:500">${p.projet}</td>
-      <td>${p.ca_ht.toLocaleString("fr-FR")}</td>
-      <td>${p.cout_reel.toLocaleString("fr-FR")}</td>
+  charts.cMargeEur=new Chart(document.getElementById("cMargeEur"),{type:"bar",data:{labels,datasets:[{data:data.map(p=>p.marge_brut),backgroundColor:data.map(p=>p.marge_pct<seuilM?"#E24B4A":"#1D9E75"),borderRadius:3}]},options:chartOpts()});
+  document.getElementById("t-finance").innerHTML=data.map(p=>{
+    const al=[];
+    if(p.marge_pct<seuilM) al.push(`<span class="badge b-danger">Marge faible</span>`);
+    if(Math.abs(p.ecart)>seuilE) al.push(`<span class="badge b-warn">Dépassement</span>`);
+    return `<tr><td style="font-weight:500">${p.projet}</td>
+      <td>${p.ca_ht.toLocaleString("fr-FR")}</td><td>${p.cout_reel.toLocaleString("fr-FR")}</td>
       <td class="${p.marge_brut<0?"danger":"ok"}">${p.marge_brut.toLocaleString("fr-FR")}</td>
       <td class="${p.marge_pct<seuilM?"danger":p.marge_pct<30?"warn":"ok"}" style="font-weight:500">${p.marge_pct.toFixed(1)}%</td>
-      <td>${alertes.join(" ")||'<span class="badge b-ok">OK</span>'}</td>
-    </tr>`;}).join("");
+      <td>${al.join(" ")||'<span class="badge b-ok">OK</span>'}</td></tr>`;}).join("");
   renderAlerts();
 }
 
 function renderCharge() {
-  const totalEst = data.reduce((s,p)=>s+p.estimation,0);
-  const totalReel = data.reduce((s,p)=>s+p.temps_reel,0);
-  const ecartMoy = data.length ? (data.reduce((s,p)=>s+p.ecart,0)/data.length).toFixed(1) : 0;
-  const surcharge = data.filter(p=>p.ecart>10).length;
-  const labels = data.map(p=>short(p.projet));
-
-  document.getElementById("kpis-charge").innerHTML = `
+  const totalEst=data.reduce((s,p)=>s+p.estimation,0);
+  const totalReel=data.reduce((s,p)=>s+p.temps_reel,0);
+  const ecartMoy=data.length?(data.reduce((s,p)=>s+p.ecart,0)/data.length).toFixed(1):0;
+  const surcharge=data.filter(p=>p.ecart>10).length;
+  const labels=data.map(p=>short(p.projet));
+  document.getElementById("kpis-charge").innerHTML=`
     <div class="kpi"><div class="kpi-label">Total estimé (h)</div><div class="kpi-val">${totalEst.toLocaleString("fr-FR")}</div></div>
     <div class="kpi"><div class="kpi-label">Total réel (h)</div><div class="kpi-val ${totalReel>totalEst?"danger":"ok"}">${totalReel.toLocaleString("fr-FR")}</div></div>
     <div class="kpi"><div class="kpi-label">Écart moyen</div><div class="kpi-val ${Math.abs(ecartMoy)>10?"danger":Math.abs(ecartMoy)>5?"warn":"ok"}">${ecartMoy>0?"+":""}${ecartMoy}%</div></div>
-    <div class="kpi"><div class="kpi-label">Projets en dépassement</div><div class="kpi-val ${surcharge>0?"danger":"ok"}">${surcharge}</div></div>`;
-
+    <div class="kpi"><div class="kpi-label">En dépassement</div><div class="kpi-val ${surcharge>0?"danger":"ok"}">${surcharge}</div></div>`;
   destroyChart("cCharge");
-  charts.cCharge = new Chart(document.getElementById("cCharge"),{type:"bar",data:{labels,datasets:[
+  charts.cCharge=new Chart(document.getElementById("cCharge"),{type:"bar",data:{labels,datasets:[
     {label:"Estimé",data:data.map(p=>p.estimation),backgroundColor:"#B5D4F4",borderRadius:3},
     {label:"Réel",data:data.map(p=>p.temps_reel),backgroundColor:"#378ADD",borderRadius:3}
   ]},options:{...chartOpts(),plugins:{legend:{display:false}}}});
-
   destroyChart("cEcart");
-  charts.cEcart = new Chart(document.getElementById("cEcart"),{type:"bar",data:{labels,datasets:[{data:data.map(p=>+p.ecart.toFixed(1)),backgroundColor:data.map(p=>Math.abs(p.ecart)>10?"#E24B4A":Math.abs(p.ecart)>5?"#EF9F27":"#1D9E75"),borderRadius:3}]},options:chartOpts()});
-
-  document.getElementById("t-charge").innerHTML = data.map(p=>{
-    const s = Math.abs(p.ecart)>10?"danger":Math.abs(p.ecart)>5?"warn":"ok";
-    return `<tr>
-      <td style="font-weight:500">${p.projet}</td>
-      <td>${p.estimation.toLocaleString("fr-FR")}</td>
-      <td>${p.temps_reel.toLocaleString("fr-FR")}</td>
+  charts.cEcart=new Chart(document.getElementById("cEcart"),{type:"bar",data:{labels,datasets:[{data:data.map(p=>+p.ecart.toFixed(1)),backgroundColor:data.map(p=>Math.abs(p.ecart)>10?"#E24B4A":Math.abs(p.ecart)>5?"#EF9F27":"#1D9E75"),borderRadius:3}]},options:chartOpts()});
+  document.getElementById("t-charge").innerHTML=data.map(p=>{
+    const s=Math.abs(p.ecart)>10?"danger":Math.abs(p.ecart)>5?"warn":"ok";
+    return `<tr><td style="font-weight:500">${p.projet}</td>
+      <td>${p.estimation.toLocaleString("fr-FR")}</td><td>${p.temps_reel.toLocaleString("fr-FR")}</td>
       <td class="${s}">${p.ecart>0?"+":""}${p.ecart.toFixed(1)}%</td>
-      <td>${badge(s,"charge")}</td>
-    </tr>`;}).join("");
+      <td>${badge(s,"charge")}</td></tr>`;}).join("");
 }
 
-// ── Helpers ──
 function statusColor(s){return s==="ok"?"#1D9E75":s==="warn"?"#EF9F27":"#E24B4A"}
 function badge(s,ctx){
-  if(ctx==="charge"){
-    const map={ok:["b-ok","OK"],warn:["b-warn","Dépassement léger"],danger:["b-danger","Dépassement"]};
-    const[c,l]=map[s]||map.ok;return`<span class="badge ${c}">${l}</span>`;
-  }
-  const map={ok:["b-ok","Dans les délais"],warn:["b-warn","Vigilance"],danger:["b-danger","En retard"]};
-  const[c,l]=map[s]||map.ok;return`<span class="badge ${c}">${l}</span>`;
+  if(ctx==="charge"){const m={ok:["b-ok","OK"],warn:["b-warn","Léger"],danger:["b-danger","Dépassement"]};const[c,l]=m[s]||m.ok;return`<span class="badge ${c}">${l}</span>`;}
+  const m={ok:["b-ok","Dans les délais"],warn:["b-warn","Vigilance"],danger:["b-danger","En retard"]};const[c,l]=m[s]||m.ok;return`<span class="badge ${c}">${l}</span>`;
 }
-function progBar(v,s){const c=statusColor(s);return`<div class="prog"><div class="prog-bar"><div class="prog-fill" style="width:${v}%;background:${c}"></div></div><span style="font-size:11px;color:#888780">${v}%</span></div>`}
+function progBar(v,s){const c=statusColor(s);return`<div class="prog"><div class="prog-bar"><div class="prog-fill" style="width:${v}%;background:${c}"></div></div><span style="font-size:11px;color:#888780">${Math.round(v)}%</span></div>`}
 function short(s){return s.length>20?s.substring(0,19)+"…":s}
 function chartOpts(maxY){return{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{...(maxY?{max:maxY}:{}),ticks:{font:{size:11}},grid:{color:"rgba(0,0,0,0.04)"}},x:{ticks:{font:{size:10}}}}}}
 function destroyChart(id){if(charts[id]){charts[id].destroy();delete charts[id]}}
@@ -417,7 +402,6 @@ function showTab(id,btn){document.querySelectorAll(".section").forEach(s=>s.clas
 function filterP(f,btn){currentFilter=f;document.querySelectorAll(".filter-btn").forEach(b=>b.classList.remove("active"));btn.classList.add("active");renderProjets()}
 function setPhase(ph,btn){currentPhase=ph;document.querySelectorAll("#phase-filters .filter-btn").forEach(b=>b.classList.remove("active"));btn.classList.add("active");renderProjets()}
 
-loadData();
 setInterval(loadData, 5*60*1000);
 </script>
 </body>
